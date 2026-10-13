@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>🗼 Tower Time — you are the tower at Little Airport!</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗼</text></svg>">
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{margin:0;background:#0f2740;color:#17395c;font-family:'Comic Sans MS','Segoe UI',system-ui,sans-serif;
+       display:flex;justify-content:center;align-items:center;overscroll-behavior:none}
+  #stage{position:relative;height:100vh;height:100dvh;aspect-ratio:450/900;max-width:100vw;
+         background:linear-gradient(180deg,#dff3ff 0%,#dff3ff 16%,#9ad48d 20%,#84c476 100%);
+         overflow:hidden;box-shadow:0 0 40px rgba(0,0,0,.45)}
+  @media (min-aspect-ratio:450/900){ #stage{border-radius:22px;margin:8px;height:calc(100dvh - 16px)} }
+  @media (max-width:420px){
+    #topbar{padding:5px 6px;gap:4px}
+    #topbar .logo{font-size:.78rem}
+    .chip{font-size:.7rem;padding:3px 6px}
+    .tools button{padding:4px 7px;font-size:.8rem}
+    .card{padding:14px 14px 16px}
+    .card h1{font-size:1.15rem}
+    .card p{font-size:.85rem}
+  }
+  @media (max-height:700px){ .card p{font-size:.85rem;margin:5px 0} }
+  svg#scene{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
+  #scene text{font-family:'Comic Sans MS','Segoe UI',sans-serif;font-weight:700}
+
+  /* ---------- top bar ---------- */
+  #topbar{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:6px;
+          padding:7px 9px;background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(255,255,255,.78));
+          border-bottom:2.5px solid #17395c;z-index:10}
+  #topbar .logo{font-weight:800;font-size:.92rem;margin-right:2px;white-space:nowrap}
+  .chips{display:flex;gap:5px;flex:1;justify-content:center;flex-wrap:wrap}
+  .chip{background:#17395c;color:#fff;border-radius:999px;font-size:.78rem;font-weight:800;padding:3px 9px;white-space:nowrap}
+  .tools{display:flex;gap:5px}
+  .tools button{font-family:inherit;font-weight:800;border:2px solid #17395c;background:#fff;border-radius:11px;
+                padding:4px 9px;font-size:.85rem;cursor:pointer}
+  .tools button:active{transform:scale(.94)}
+
+  /* ---------- hint strip ---------- */
+  #hint{position:absolute;left:8px;right:8px;bottom:10px;z-index:10;background:rgba(255,255,255,.94);
+        border:2.5px dashed #ff9f1c;border-radius:14px;padding:7px 11px;font-size:.86rem;font-weight:700;
+        text-align:center;line-height:1.35;pointer-events:none}
+  #hint b{color:#e63946}
+
+  /* ---------- radio toasts ---------- */
+  #toasts{position:absolute;top:64px;left:8px;right:8px;z-index:9;display:flex;flex-direction:column;gap:5px;pointer-events:none}
+  .toast{background:rgba(15,39,64,.92);color:#cfe8ff;border-radius:11px;padding:5px 10px;font-size:.76rem;
+         font-weight:700;max-width:88%;animation:toastin .25s ease-out;box-shadow:0 3px 8px rgba(0,0,0,.3)}
+  .toast b{color:#ffd166}
+  .toast.fade{opacity:0;transition:opacity .5s}
+  @keyframes toastin{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
+
+  /* ---------- overlays ---------- */
+  .ov{position:absolute;inset:0;background:rgba(15,39,64,.66);display:none;align-items:center;justify-content:center;z-index:40;padding:18px}
+  .ov.show{display:flex}
+  .card{background:#fff;border:4px solid #17395c;border-radius:22px;max-width:340px;width:100%;padding:20px 20px 22px;text-align:center}
+  .card h1{margin:0 0 8px;font-size:1.35rem}
+  .card p{margin:7px 0;font-size:.95rem;line-height:1.5;text-align:left}
+  .card .big{font-size:1.05rem;font-weight:800}
+  .card button{font-family:inherit;font-weight:800;font-size:1.15rem;border:3px solid #17395c;border-radius:16px;
+               background:#ff8c42;color:#17395c;padding:12px 26px;cursor:pointer;box-shadow:0 5px 0 #b35617;margin-top:12px}
+  .card button:active{transform:translateY(3px);box-shadow:0 2px 0 #b35617}
+
+  /* ---------- SVG bits ---------- */
+  .cloud{animation:drift linear infinite}
+  @keyframes drift{from{transform:translateX(-80px)}to{transform:translateX(530px)}}
+  .glow{animation:glowp 1.1s ease-in-out infinite}
+  @keyframes glowp{0%,100%{opacity:.95}50%{opacity:.25}}
+  .planeWarn{animation:warnp .5s ease-in-out infinite}
+  @keyframes warnp{0%,100%{opacity:1}50%{opacity:.15}}
+  #drawLine{fill:none;stroke:#e63946;stroke-width:4;stroke-dasharray:2 9;stroke-linecap:round;opacity:.95}
+  .trail{fill:none;stroke:#ff9f1c;stroke-width:3.5;stroke-dasharray:1 8;stroke-linecap:round;opacity:.85}
+  .hotspot{cursor:pointer}
+  #fx{pointer-events:none}
+  .skPulse{animation:skp 1.4s ease-in-out infinite}
+  @keyframes skp{0%,100%{opacity:.4}50%{opacity:1}}
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="scene" viewBox="0 0 450 900" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="grassG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#9ad48d"/><stop offset="1" stop-color="#84c476"/>
+      </linearGradient>
+    </defs>
+
+    <!-- ground -->
+    <rect x="0" y="0" width="450" height="900" fill="url(#grassG)"/>
+    <circle cx="395" cy="60" r="34" fill="#ffd166" stroke="#f4a912" stroke-width="4" opacity=".95"/>
+    <g class="cloud" style="animation-duration:70s" opacity=".9">
+      <ellipse cx="0" cy="120" rx="34" ry="14" fill="#fff"/><ellipse cx="26" cy="126" rx="22" ry="10" fill="#fff"/>
+    </g>
+    <g class="cloud" style="animation-duration:95s" opacity=".85">
+      <ellipse cx="0" cy="430" rx="40" ry="15" fill="#fff"/><ellipse cx="-28" cy="436" rx="24" ry="10" fill="#fff"/>
+    </g>
+    <g class="cloud" style="animation-duration:120s" opacity=".8">
+      <ellipse cx="0" cy="700" rx="36" ry="14" fill="#fff"/><ellipse cx="28" cy="706" rx="24" ry="10" fill="#fff"/>
+    </g>
+
+    <!-- trees -->
+    <g stroke="#17395c" stroke-width="2.5">
+      <rect x="34" y="330" width="9" height="22" fill="#8b5e34"/><circle cx="38" cy="320" r="18" fill="#58a35c"/>
+      <rect x="404" y="470" width="9" height="22" fill="#8b5e34"/><circle cx="408" cy="460" r="18" fill="#58a35c"/>
+      <circle cx="30" cy="560" r="11" fill="#58a35c"/><circle cx="424" cy="640" r="11" fill="#58a35c"/>
+    </g>
+
+    <!-- runway (vertical, centre x=225) -->
+    <g>
+      <rect x="192" y="150" width="66" height="640" fill="#46525e" stroke="#17395c" stroke-width="3"/>
+      <line x1="225" y1="165" x2="225" y2="775" stroke="#fff" stroke-width="4" stroke-dasharray="22 18"/>
+      <rect id="thrTop" x="184" y="144" width="82" height="46" fill="#2fbf71" opacity="1" rx="6"/>
+      <rect id="thrBot" x="184" y="750" width="82" height="46" fill="#2fbf71" opacity=".25" rx="6"/>
+      <text id="arrTop" x="278" y="176" font-size="22" fill="#2fbf71">⬇</text>
+      <text id="arrBot" x="278" y="782" font-size="22" fill="#2fbf71" opacity=".25">⬆</text>
+      <text id="lblTop" x="225" y="216" font-size="20" fill="#fff" text-anchor="middle">18</text>
+      <text id="lblBot" x="225" y="742" font-size="20" fill="#fff" text-anchor="middle">36</text>
+      <!-- threshold bars -->
+      <g fill="#fff">
+        <rect x="200" y="156" width="5" height="24"/><rect x="211" y="156" width="5" height="24"/><rect x="222" y="156" width="5" height="24"/><rect x="233" y="156" width="5" height="24"/><rect x="244" y="156" width="5" height="24"/>
+        <rect x="200" y="760" width="5" height="24"/><rect x="211" y="760" width="5" height="24"/><rect x="222" y="760" width="5" height="24"/><rect x="233" y="760" width="5" height="24"/><rect x="244" y="760" width="5" height="24"/>
+      </g>
+    </g>
+
+    <!-- taxiways + apron -->
+    <g fill="#b9c3cc" stroke="#17395c" stroke-width="2.5">
+      <rect x="130" y="460" width="190" height="26" rx="8"/>
+      <rect x="140" y="473" width="24" height="253"/>
+      <rect x="286" y="473" width="24" height="253"/>
+      <rect x="40" y="726" width="370" height="24" rx="8"/>
+      <rect x="60" y="726" width="24" height="80"/>
+      <rect x="130" y="726" width="24" height="80"/>
+      <rect x="296" y="726" width="24" height="80"/>
+      <rect x="366" y="726" width="24" height="80"/>
+    </g>
+
+    <!-- gates -->
+    <g>
+      <g id="gate0"><rect x="44" y="806" width="56" height="40" rx="7" fill="#ffd166" stroke="#17395c" stroke-width="2.5"/><text x="72" y="832" font-size="15" text-anchor="middle" fill="#17395c">1</text></g>
+      <g id="gate1"><rect x="114" y="806" width="56" height="40" rx="7" fill="#ffd166" stroke="#17395c" stroke-width="2.5"/><text x="142" y="832" font-size="15" text-anchor="middle" fill="#17395c">2</text></g>
+      <g id="gate2"><rect x="280" y="806" width="56" height="40" rx="7" fill="#ffd166" stroke="#17395c" stroke-width="2.5"/><text x="308" y="832" font-size="15" text-anchor="middle" fill="#17395c">3</text></g>
+      <g id="gate3"><rect x="350" y="806" width="56" height="40" rx="7" fill="#ffd166" stroke="#17395c" stroke-width="2.5"/><text x="378" y="832" font-size="15" text-anchor="middle" fill="#17395c">4</text></g>
+    </g>
+
+    <!-- terminal -->
+    <g>
+      <rect x="0" y="852" width="450" height="48" fill="#fff6e8" stroke="#17395c" stroke-width="3"/>
+      <rect x="0" y="846" width="450" height="14" fill="#ff6b6b" stroke="#17395c" stroke-width="2.5"/>
+      <text x="225" y="886" font-size="16" text-anchor="middle" fill="#17395c">✈ LITTLE AIRPORT ✈</text>
+    </g>
+
+    <!-- control tower (tap me) -->
+    <g id="towerG" class="hotspot">
+      <rect x="330" y="252" width="26" height="64" fill="#fff" stroke="#17395c" stroke-width="2.5"/>
+      <rect x="330" y="282" width="26" height="16" fill="#ff6b6b"/>
+      <rect x="322" y="222" width="42" height="34" rx="8" fill="#a8dcff" stroke="#17395c" stroke-width="2.5"/>
+      <g id="radarArm"><line x1="348" y1="214" x2="368" y2="200" stroke="#17395c" stroke-width="3.5" stroke-linecap="round"/></g>
+      <circle cx="348" cy="214" r="4" fill="#17395c"/>
+    </g>
+
+    <!-- windsock (tap me) -->
+    <g id="sockG" class="hotspot">
+      <line x1="88" y1="300" x2="88" y2="212" stroke="#8a93a1" stroke-width="4.5"/>
+      <g id="sockCloth">
+        <path d="M88,206 L44,212 L44,228 L88,234 Z" fill="#ff6b3d" stroke="#17395c" stroke-width="2.5"/>
+        <path d="M66,209 L44,212 L44,228 L66,231 Z" fill="#fff" stroke="#17395c" stroke-width="1.5"/>
+      </g>
+      <circle cx="88" cy="206" r="5" fill="#17395c"/>
+    </g>
+
+    <!-- trails + planes + fx -->
+    <g id="trailsG"></g>
+    <g id="planesG"></g>
+    <g id="fx"></g>
+  </svg>
+
+  <div id="topbar">
+    <span class="logo">🗼 TOWER TIME</span>
+    <div class="chips">
+      <span class="chip" id="chipLanded">🛬 0</span>
+      <span class="chip" id="chipDep">🛫 0</span>
+      <span class="chip" id="chipLevel">⭐ 1</span>
+      <span class="chip" id="chipWind">🌬️ ↑</span>
+    </div>
+    <div class="tools">
+      <button id="btnPause" title="pause">⏸</button>
+      <button id="btnSound" title="sound">🔊</button>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+  <div id="hint">Welcome, controller!</div>
+
+  <div class="ov show" id="startOv">
+    <div class="card">
+      <h1>🗼 YOU ARE THE TOWER!</h1>
+      <p>✏️ <b>Draw a line with your finger</b> from a plane to the <b>GLOWING</b> runway end — it follows your line and lands!</p>
+      <p>🌬️ Mind the <b>wind</b>: the glowing end changes. Wrong end? The plane does a funny <b>go-around</b> 🌀 — no worries!</p>
+      <p>🚀 Parked planes sometimes shout <b>READY!</b> — draw them a path to the runway for take-off.</p>
+      <button id="btnStart">▶ START SHIFT</button>
+    </div>
+  </div>
+
+  <div class="ov" id="pauseOv">
+    <div class="card">
+      <h1>⏸ SHIFT PAUSED</h1>
+      <p class="big" id="pauseStats"></p>
+      <button id="btnResume">▶ BACK TO WORK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const svg=$('scene');
+const NS='http://www.w3.org/2000/svg';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,k)=>a+(b-a)*k;
+const R=Math.random;
+function angDiff(a,b){let d=(a-b)%360; if(d>180)d-=360; if(d<-180)d+=360; return d;}
+function svgPt(e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse());}
+function el(tag,attrs,parent){const n=document.createElementNS(NS,tag);for(const k in attrs)n.setAttribute(k,attrs[k]);(parent||svg).appendChild(n);return n;}
+
+/* ---------------- sound ---------------- */
+let AC=null,master=null,soundOn=true;
+function audioInit(){
+  if(!soundOn)return null;
+  if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();master=AC.createGain();master.gain.value=.5;master.connect(AC.destination);}catch(e){return null;}}
+  if(AC.state==='suspended')AC.resume();
+  return AC;
+}
+function tone(f,dur,type='sine',vol=.25,when=0,glide){
+  const ac=audioInit();if(!ac)return;
+  const t=ac.currentTime+when,o=ac.createOscillator(),g=ac.createGain();
+  o.type=type;o.frequency.setValueAtTime(f,t);
+  if(glide)o.frequency.exponentialRampToValueAtTime(glide,t+dur);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+.015);
+  g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.05);
+}
+const sSpawn=()=>tone(520,.12,'triangle',.18);
+const sLand =()=>{tone(659,.16,'sine',.3);tone(784,.2,'sine',.3,.14);};
+const sOff  =()=>tone(220,1,'sawtooth',.12,0,900);
+const sGo   =()=>{tone(330,.22,'square',.2);tone(247,.3,'square',.2,.2);};
+const sWarn =()=>tone(880,.09,'square',.2);
+const sWind =()=>{tone(392,.25,'sine',.25);tone(523,.3,'sine',.25,.2);};
+const sLevel=()=>{tone(523,.14,'sine',.28);tone(659,.14,'sine',.28,.13);tone(784,.3,'sine',.3,.26);};
+const sSk   =()=>{tone(659,.12,'triangle',.3);tone(880,.12,'triangle',.3,.12);tone(1047,.25,'triangle',.32,.24);};
+const sClick=()=>tone(650,.06,'triangle',.22);
+
+/* ---------------- state ---------------- */
+const S={started:false,paused:false,landed:0,departed:0,level:1,
+         windDir:90,windLabel:'18',   // 90 = land flying DOWN (enter top), -90 = land flying UP (enter bottom)
+         runwayBusy:false,nextSpawn:2.5,windTimer:95,seq:0,skNext:4,firstLanded:false};
+const planes=[];
+const GATES=[
+  {x:72, y:806,occupied:null},
+  {x:142,y:806,occupied:null},
+  {x:308,y:806,occupied:null},
+  {x:378,y:806,occupied:null},
+];
+const LIVERY=['#ff6b6b','#4ecdc4','#a06cd5','#ff9f1c','#5aa9e6'];
+const RWY_X=225, TOP={y0:150,y1:210}, BOT={y0:730,y1:790};
+const LIVERIES_SK='#2f6fd6';
+
+function toast(html,ms=4200){
+  const box=$('toasts');
+  const d=document.createElement('div');
+  d.className='toast';d.innerHTML=html;box.appendChild(d);
+  while(box.children.length>3)box.removeChild(box.firstChild);
+  setTimeout(()=>d.classList.add('fade'),ms-500);
+  setTimeout(()=>d.remove(),ms);
+}
+function setHint(html){$('hint').innerHTML=html;}
+function updateChips(){
+  $('chipLanded').textContent='🛬 '+S.landed;
+  $('chipDep').textContent='🛫 '+S.departed;
+  $('chipLevel').textContent='⭐ '+S.level;
+  $('chipWind').textContent='🌬️ '+(S.windDir===90?'⬇':'⬆');
+}
+
+/* ---------------- planes ---------------- */
+function mkPlane(kind){
+  S.seq++;
+  const isSK = kind==='arr' && S.seq===S.skNext;
+  if(isSK) S.skNext+=4;
+  const g=el('g',{},$('planesG'));
+  const shadow=el('ellipse',{cx:0,cy:5,rx:15,ry:7,fill:'rgba(23,57,92,.18)'},g);
+  const body=el('g',{},g);
+  // top-view cartoon plane, nose pointing +x (right); rotated by heading
+  const col=isSK?'#ffffff':LIVERY[S.seq%LIVERY.length];
+  el('ellipse',{cx:2,cy:0,rx:17,ry:6.5,fill:col,stroke:'#17395c','stroke-width':2.2},body);
+  el('path',{d:'M2,-1 L-7,-15 L-13,-14 L-6,-1 Z',fill:isSK?LIVERIES_SK:col,stroke:'#17395c','stroke-width':2},body);
+  el('path',{d:'M2,1 L-7,15 L-13,14 L-6,1 Z',fill:isSK?LIVERIES_SK:col,stroke:'#17395c','stroke-width':2},body);
+  el('path',{d:'M-10,-2 L-16,-8 L-19,-7 L-15,-1 Z',fill:isSK?LIVERIES_SK:col,stroke:'#17395c','stroke-width':1.8},body);
+  el('path',{d:'M-10,2 L-16,8 L-19,7 L-15,1 Z',fill:isSK?LIVERIES_SK:col,stroke:'#17395c','stroke-width':1.8},body);
+  el('path',{d:'M12,-2.5 q5,2.5 0,5 q3,-2.5 0,-5',fill:'#a8dcff',stroke:'#17395c','stroke-width':1.5},body);
+  if(isSK) el('circle',{cx:-14,cy:0,r:4,fill:'#ffd166',stroke:'#17395c','stroke-width':1.8},body);
+  const warn=el('circle',{cx:0,cy:0,r:26,fill:'none',stroke:'#e5383b','stroke-width':3,opacity:0},g);
+  const badge=el('g',{},g);
+  el('circle',{cx:0,cy:-22,r:10,fill:'#fff',stroke:'#17395c','stroke-width':2.2},badge);
+  const bt=el('text',{x:0,y:-18,'font-size':11,'text-anchor':'middle',fill:'#17395c'},badge);
+  const p={g,body,badge,bt,warn,shadow,
+    kind,x:60+R()*330,y:-28,heading:90,speed:38,state:'arrive',
+    path:null,trail:null,seq:S.seq,name:(isSK?'SK-100':'N-'+S.seq),isSK,
+    gate:null,t:0,badgeTxt:''};
+  planes.push(p);
+  setBadge(p, kind==='arr'?String(S.seq):'🚀');
+  setT(p);
+  sSpawn();
+  return p;
+}
+function setBadge(p,txt){
+  if(p.badgeTxt===txt)return;
+  p.badgeTxt=txt;
+  p.bt.textContent=txt;
+  p.bt.setAttribute('font-size', txt.length>2?'7':'11');
+  p.badge.setAttribute('opacity',txt?1:0);
+}
+function setT(p){
+  const sc=p.state==='taxi'||p.state==='park'||p.state==='ready'||p.state==='gtaxi'||p.state==='holdshort'||p.state==='lineup'?.85:1;
+  p.g.setAttribute('transform',`translate(${p.x} ${p.y}) rotate(${p.heading}) scale(${sc})`);
+}
+function setWarn(p,on){
+  if(on&&!p.warn.classList.contains('planeWarn')){p.warn.setAttribute('opacity',.9);p.warn.classList.add('planeWarn');}
+  if(!on){p.warn.setAttribute('opacity',0);p.warn.classList.remove('planeWarn');}
+}
+function freeGate(){return GATES.find(gt=>!gt.occupied)||null;}
+function removeTrail(p){if(p.trail){p.trail.remove();p.trail=null;}p.path=null;}
+function givePath(p,pts){
+  p.path=pts.slice();
+  removeTrailSilent(p);
+  p.trail=el('polyline',{class:'trail',points:ptsToAttr(p)},$('trailsG'));
+  if(p.state==='ready'){p.state='gtaxi';p.ground=true;}          // a parked plane taxiing out for take-off
+  else if(p.state!=='land'&&p.state!=='taxi'){p.state='fly';p.ground=false;}
+}
+function removeTrailSilent(p){if(p.trail){p.trail.remove();p.trail=null;}}
+function ptsToAttr(p){
+  let s=p.x.toFixed(1)+','+p.y.toFixed(1);
+  (p.path||[]).forEach(pt=>s+=' '+pt.x.toFixed(1)+','+pt.y.toFixed(1));
+  return s;
+}
+function followPath(p,dt){
+  if(!p.path||!p.path.length)return false;
+  const t=p.path[0];
+  const dx=t.x-p.x,dy=t.y-p.y,d=Math.hypot(dx,dy);
+  const spd=p.ground?26:46;
+  if(d<7){p.path.shift();if(p.trail)p.trail.setAttribute('points',ptsToAttr(p));return p.path.length>0;}
+  p.x+=dx/d*spd*dt;p.y+=dy/d*spd*dt;
+  const ta=Math.atan2(dy,dx)*180/Math.PI;
+  const d0=angDiff(ta,p.heading);
+  p.heading+=clamp(d0,-200*dt,200*dt);
+  if(p.trail)p.trail.setAttribute('points',ptsToAttr(p));
+  return true;
+}
+
+/* ---------------- actions ---------------- */
+function goAround(p,msg){
+  if(p.state==='goaround')return;
+  removeTrail(p);
+  p.state='goaround';p.t=0;p.speed=70;
+  sGo();
+  toast(msg||('🌀 <b>'+p.name+'</b> goes around — wheee!'));
+}
+function doLand(p){
+  S.runwayBusy=true;
+  removeTrail(p);
+  p.state='land';p.heading=S.windDir;p.speed=62;
+  p.x=lerp(p.x,RWY_X,.55);
+  sLand();
+  toast('🛬 <b>'+p.name+'</b> landed! What a smooth one!');
+  if(p.isSK){sSk();confetti(p.x,p.y);toast('🖐️ <b>SK-100</b>: “Maya says hi, Tower!” ✨');}
+}
+function finishRoll(p){
+  S.runwayBusy=false;
+  S.landed++;updateChips();
+  if(!S.firstLanded){S.firstLanded=true;setHint('🚀 Watch for planes shouting <b>READY!</b> — draw them to the runway too!');}
+  const gt=freeGate();
+  if(gt){
+    gt.occupied=p;p.gate=gt;
+    p.state='taxi';
+    const conn=gt.x<RWY_X?152:298;
+    p.path=[{x:conn,y:473},{x:conn,y:738},{x:gt.x,y:738},{x:gt.x,y:796}];
+    p.ground=true;p.trail=el('polyline',{class:'trail',points:ptsToAttr(p)},$('trailsG'));
+  }else{
+    p.state='waitgate';p.speed=0;
+    toast('🅿️ Gates are full — <b>'+p.name+'</b> waits at the runway end.');
+  }
+  checkLevel();
+}
+function startDeparture(p){
+  p.state='lineup';p.t=0;S.runwayBusy=true;
+  p.x=RWY_X;
+  p.y=S.windDir===90?TOP.y0+30:BOT.y1-30;
+  removeTrail(p);
+}
+function checkLevel(){
+  const nl=1+Math.floor(S.landed/3);
+  if(nl>S.level){S.level=nl;updateChips();sLevel();toast('⭐ <b>Shift level '+nl+'</b> — more traffic incoming!');}
+}
+
+/* ---------------- spawn director ---------------- */
+function spawnTick(dt){
+  if(!S.started)return;
+  S.nextSpawn-=dt;
+  const maxAir=Math.min(3+S.level,6);
+  const air=planes.filter(p=>p.kind==='arr'&&(p.state==='arrive'||p.state==='fly'||p.state==='goaround')).length;
+  if(S.nextSpawn<=0){
+    S.nextSpawn=Math.max(8,22-S.level*2)*(0.8+R()*0.5);
+    if(air<maxAir)mkPlane('arr');
+  }
+  // gate planes announce readiness
+  planes.forEach(p=>{
+    if(p.state==='park'){
+      p.t+=dt;
+      if(p.t>14+R()*10){p.state='ready';setBadge(p,'🚀');sSpawn();toast('🚀 <b>'+p.name+'</b> at gate '+(GATES.indexOf(p.gate)+1)+': “READY for take-off!” — draw me a path!');}
+    }
+  });
+  // wind changes (wait until the runway is calm so nobody teleports)
+  S.windTimer-=dt;
+  if(S.windTimer<=0 && !planes.some(q=>['land','lineup','takeoff','holdshort'].includes(q.state))){
+    S.windTimer=95+R()*40;
+    S.windDir=S.windDir===90?-90:90;
+    S.windLabel=S.windDir===90?'18':'36';
+    updateChips();sWind();
+    toast('🌬️ <b>Wind changed!</b> Land at the <b>GLOWING</b> end ('+S.windLabel+')!');
+  }
+}
+
+/* ---------------- per-frame plane update ---------------- */
+function updatePlane(p,dt){
+  switch(p.state){
+    case 'arrive':{
+      p.y+=p.speed*dt;p.heading=lerp(p.heading,90,1.5*dt);
+      if(p.y>940){p.y=-28;p.x=60+R()*330;toast('🔁 <b>'+p.name+'</b> looped around — draw them a path! ✏️');}
+      break;}
+    case 'fly':{
+      if(!followPath(p,dt)){p.state='arrive';removeTrailSilent(p);}
+      break;}
+    case 'goaround':{
+      p.y-=p.speed*dt;p.speed=Math.min(95,p.speed+30*dt);
+      p.heading=lerp(p.heading,-90,2.5*dt);
+      if(p.y<-34){p.state='waitRe';p.t=2.5;}
+      break;}
+    case 'waitRe':{
+      p.t-=dt;
+      if(p.t<=0){p.state='arrive';p.x=60+R()*330;p.y=-28;p.heading=90;p.speed=38;setBadge(p,String(p.seq));}
+      break;}
+    case 'land':{
+      const exitY=473;
+      const dist=Math.abs(exitY-p.y);
+      const target=dist<80?22:58;
+      p.speed+=clamp(target-p.speed,-70*dt,70*dt);
+      p.x=lerp(p.x,RWY_X,4*dt);
+      p.y+=S.windDir/90*p.speed*dt;
+      if((S.windDir===90&&p.y>=exitY)||(S.windDir===-90&&p.y<=exitY)){finishRoll(p);}
+      break;}
+    case 'taxi':{
+      if(!followPath(p,dt)){
+        removeTrailSilent(p);
+        p.state='park';p.t=0;p.heading=90;p.gate.occupied=p;
+      }
+      break;}
+    case 'gtaxi':{
+      const inTop=Math.abs(p.y-(TOP.y0+TOP.y1)/2)<44&&Math.abs(p.x-RWY_X)<44;
+      const inBot=Math.abs(p.y-(BOT.y0+BOT.y1)/2)<44&&Math.abs(p.x-RWY_X)<44;
+      const atActive=(S.windDir===90&&inTop)||(S.windDir===-90&&inBot);
+      if(atActive){                    // check BEFORE consuming the path's last point
+        if(S.runwayBusy){p.state='holdshort';toast('✋ <b>'+p.name+'</b> holding short — runway busy!');}
+        else startDeparture(p);
+        break;
+      }
+      if(!followPath(p,dt)){p.state='ready';setBadge(p,'🚀');toast('Almost! <b>'+p.name+'</b> needs a path that reaches the runway end.');}
+      break;}
+    case 'holdshort':{
+      if(!S.runwayBusy)startDeparture(p);
+      break;}
+    case 'lineup':{
+      p.t+=dt;
+      p.heading+=angDiff(S.windDir,p.heading)*Math.min(1,4*dt);
+      if(p.t>.8){p.state='takeoff';p.speed=10;sOff();toast('🛫 <b>'+p.name+'</b> is rolling — cleared for take-off!');}
+      break;}
+    case 'takeoff':{
+      p.speed=Math.min(150,p.speed+70*dt);
+      p.x=RWY_X;p.y+=S.windDir/90*p.speed*dt;
+      if(Math.abs(p.y-225)>330){
+        S.runwayBusy=false;S.departed++;updateChips();
+        if(p.gate){p.gate.occupied=null;p.gate=null;}
+        p.state='gone';p.g.remove();
+        toast('☁️ <b>'+p.name+'</b> is airborne. Bye! 👋');
+        checkLevel();
+      }
+      break;}
+    case 'waitgate':{
+      if(freeGate()){
+        const gt=freeGate();gt.occupied=p;p.gate=gt;p.state='taxi';
+        const ex=gt.x<RWY_X?162:288;
+        p.path=[{x:ex,y:708},{x:ex,y:738},{x:gt.x,y:738},{x:gt.x,y:796}];
+        p.ground=true;
+      }
+      break;}
+  }
+  if(p.gate&&p.state!=='park'&&p.state!=='ready'&&p.state!=='gtaxi'){/* gate freed only on takeoff */}
+  setT(p);
+}
+
+/* ---------------- conflicts (airborne) ---------------- */
+let warnCool=0;
+function conflicts(dt){
+  warnCool-=dt;
+  const air=planes.filter(p=>(p.state==='arrive'||p.state==='fly')&&p.y>10);
+  for(let i=0;i<air.length;i++)for(let j=i+1;j<air.length;j++){
+    const a=air[i],b=air[j];
+    const d=Math.hypot(a.x-b.x,a.y-b.y);
+    if(d<24){
+      goAround(a,'😅 Too close! <b>'+a.name+'</b> and <b>'+b.name+'</b> split up — both go around!');
+      goAround(b,null);
+    }else if(d<40){
+      setWarn(a,true);setWarn(b,true);
+      if(warnCool<=0){sWarn();warnCool=1.6;toast('⚠️ <b>'+a.name+'</b> and <b>'+b.name+'</b> are close — spread them out!');}
+    }
+  }
+  air.forEach(p=>{ /* clear stale warnings */
+  });
+  planes.forEach(p=>{if(!air.includes(p))setWarn(p,false);});
+}
+
+/* ---------------- landing detection ---------------- */
+function landingCheck(p){
+  if(p.state!=='arrive'&&p.state!=='fly')return;
+  const inTop=p.x>176&&p.x<274&&p.y>TOP.y0&&p.y<TOP.y1+20;
+  const inBot=p.x>176&&p.x<274&&p.y<BOT.y1&&p.y>BOT.y0-20;
+  const dActive=Math.abs(angDiff(p.heading,S.windDir));
+  const crossingActive=(S.windDir===90&&inTop)||(S.windDir===-90&&inBot);
+  if(dActive<55){
+    if(!crossingActive){
+      const wrongEnd=(S.windDir===90&&inBot)||(S.windDir===-90&&inTop);
+      if(wrongEnd&&dActive<38)goAround(p,'🌀 Wrong end, <b>'+p.name+'</b>! Land at the <b>GLOWING</b> end — go around!');
+      return;
+    }
+    if(dActive>38)return;   // crossing the active end askew — fly through, kid can redraw
+    if(S.runwayBusy){goAround(p,'🌀 Runway busy — <b>'+p.name+'</b> goes around! (One at a time!)');return;}
+    doLand(p);
+  }else if(crossingActive&&dActive>120){
+    goAround(p,'🌀 <b>'+p.name+'</b> is going the WRONG way over the runway — go around and turn!');
+  }
+}
+
+/* ---------------- confetti ---------------- */
+function confetti(x,y){
+  const colors=['#ff6b6b','#ffd166','#4ecdc4','#a06cd5','#ff9f1c'];
+  for(let i=0;i<18;i++){
+    const c=el('circle',{cx:x,cy:y,r:2.5+R()*3,fill:colors[i%5]},$('fx'));
+    const vx=(R()-.5)*90,vy=-40-R()*70,t0=R()*3;
+    tween(1.6,k=>{c.setAttribute('cx',x+vx*k*1.6);c.setAttribute('cy',y+vy*k*1.6+110*k*k);c.setAttribute('opacity',1-k);},()=>c.remove());
+  }
+}
+
+/* ---------------- tweens ---------------- */
+const anims=[];
+function tween(dur,fn,done){anims.push({t:0,dur,fn,done});}
+
+/* ---------------- drawing input ---------------- */
+let draw=null, preview=null; // draw: {p, pts:[]}
+function nearestPlane(pt){
+  let best=null,bd=34;
+  planes.forEach(p=>{
+    if(!['arrive','fly','ready','gtaxi'].includes(p.state))return;
+    const d=Math.hypot(p.x-pt.x,p.y-pt.y);
+    if(d<bd){bd=d;best=p;}
+  });
+  return best;
+}
+svg.addEventListener('pointerdown',e=>{
+  if(!S.started||S.paused||draw)return;
+  audioInit();
+  const pt=svgPt(e);
+  const p=nearestPlane(pt);
+  if(!p)return;
+  e.preventDefault();
+  draw={p,pts:[{x:p.x,y:p.y}]};
+  preview=el('polyline',{id:'drawLine',points:''},$('trailsG'));
+  try{svg.setPointerCapture(e.pointerId);}catch(err){}
+});
+svg.addEventListener('pointermove',e=>{
+  if(!draw)return;
+  const pt=svgPt(e);
+  const last=draw.pts[draw.pts.length-1];
+  if(Math.hypot(pt.x-last.x,pt.y-last.y)>9){
+    draw.pts.push({x:pt.x,y:pt.y});
+    preview.setAttribute('points',draw.pts.map(q=>q.x.toFixed(1)+','+q.y.toFixed(1)).join(' '));
+  }
+});
+function endDraw(){
+  if(!draw)return;
+  const p=draw.p,pts=draw.pts;
+  draw=null;
+  if(preview){preview.remove();preview=null;}
+  if(pts.length>=3)givePath(p,pts);
+}
+svg.addEventListener('pointerup',endDraw);
+svg.addEventListener('pointercancel',endDraw);
+
+/* ---------------- fun facts (tap tower / sock) ---------------- */
+let factT=null;
+function showFact(txt){
+  const old=$('factBubble');
+  if(old)old.remove();
+  const d=el('foreignObject',{x:35,y:330,width:380,height:110},svg);
+  d.innerHTML='<div xmlns="http://www.w3.org/1999/xhtml" style="background:#fffbe8;border:3px solid #ff9f1c;border-radius:12px;padding:8px 10px;font-size:12.5px;font-weight:700;color:#17395c;line-height:1.35">'+txt+'</div>';
+  clearTimeout(factT);
+  factT=setTimeout(()=>d.remove(),6500);
+}
+$('towerG').addEventListener('pointerdown',e=>{e.stopPropagation();sClick();showFact('🗼 <b>THE TOWER</b> — controllers watch every plane and tell them when to land, hold short, or take off. Never move without permission!');});
+$('sockG').addEventListener('pointerdown',e=>{e.stopPropagation();sClick();showFact('🌬️ The <b>WINDSOCK</b> shows the wind. Planes land <b>INTO</b> the wind — like a kite! That\'s why the glowing runway end changes.');});
+
+/* ---------------- main loop ---------------- */
+let last=performance.now();
+function frame(dt){
+  if(S.paused||!S.started)return;
+  spawnTick(dt);
+  planes.forEach(p=>updatePlane(p,dt));
+  planes.forEach(landingCheck);
+  conflicts(dt);
+  for(let i=planes.length-1;i>=0;i--){
+    if(planes[i].state==='gone')planes.splice(i,1);
+  }
+  radarA=(radarA+80*dt)%360;
+  $('radarArm').setAttribute('transform','rotate('+radarA+' 348 214)');
+  sockT+=dt*3;
+  $('sockCloth').setAttribute('transform','rotate('+(Math.sin(sockT)*4+(S.windDir===90?0:180))+' 88 220)');
+  for(let i=anims.length-1;i>=0;i--){
+    const a=anims[i];a.t+=dt;const k=clamp(a.t/a.dur,0,1);a.fn(k);
+    if(k>=1){anims.splice(i,1);a.done&&a.done();}
+  }
+}
+requestAnimationFrame(function tick(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  frame(dt);
+  requestAnimationFrame(tick);
+});
+setInterval(()=>{ // watchdog for throttled tabs
+  if(performance.now()-last>250){const now=performance.now();frame(Math.min(.05,(now-last)/1000));last=now;}
+},80);
+let radarA=0,sockT=0;
+
+/* ---------------- glow + hint updates ---------------- */
+setInterval(()=>{
+  const topOn=S.windDir===90;
+  $('thrTop').setAttribute('opacity',topOn?1:.22);
+  $('thrBot').setAttribute('opacity',topOn?.22:1);
+  $('arrTop').setAttribute('opacity',topOn?1:.22);
+  $('arrBot').setAttribute('opacity',topOn?.22:1);
+},200);
+
+/* ---------------- buttons ---------------- */
+$('btnStart').addEventListener('click',()=>{
+  audioInit();sClick();
+  $('startOv').classList.remove('show');
+  S.started=true;S.nextSpawn=1.2;
+  setHint('✏️ Draw a line from a plane to the <b>GLOWING</b> runway end!');
+  toast('🎧 <b>Tower</b>: Good morning! First plane is coming — guide it in!');
+});
+$('btnPause').addEventListener('click',()=>{
+  if(!S.started)return;
+  sClick();
+  S.paused=true;
+  $('pauseStats').textContent='🛬 '+S.landed+' landed · 🛫 '+S.departed+' departed · ⭐ level '+S.level;
+  $('pauseOv').classList.add('show');
+});
+$('btnResume').addEventListener('click',()=>{
+  sClick();S.paused=false;$('pauseOv').classList.remove('show');
+});
+$('btnSound').addEventListener('click',()=>{
+  soundOn=!soundOn;
+  $('btnSound').textContent=soundOn?'🔊':'🔇';
+  if(master)master.gain.value=soundOn?.5:0;
+  if(soundOn)audioInit();
+});
+
+/* ---------------- test hooks (harmless) ---------------- */
+window.__tt={
+  S,planes,GATES,
+  step:()=>S.started?'running':'menu',
+  simulate(sec){const n=Math.max(1,Math.round(sec*60));for(let i=0;i<n;i++)frame(1/60);},
+  drawPath(idOrName,pts){
+    const p=planes.find(q=>q.name===idOrName||String(q.seq)===String(idOrName));
+    if(!p)return 'no plane '+idOrName;
+    givePath(p,pts);
+    return 'path given to '+p.name+' ('+pts.length+' pts)';
+  },
+  plane(name){return planes.find(q=>q.name===name||String(q.seq)===String(name));},
+  isDrawing:()=>!!draw,
+  hit(pt){const p=nearestPlane(pt);return p?p.name+'@'+Math.round(p.x)+','+Math.round(p.y)+' '+p.state:'none';},
+  draw(name,tx,ty){ // drives the REAL input path: pointer events on the svg
+    const p=planes.find(q=>q.name===name||String(q.seq)===String(name));
+    if(!p)return 'no plane '+name;
+    const ctm=svg.getScreenCTM();
+    const toC=(px,py)=>({x:px*ctm.a+ctm.e,y:py*ctm.d+ctm.f});
+    const fire=(type,px,py)=>svg.dispatchEvent(new PointerEvent(type,{clientX:px,clientY:py,pointerId:7,bubbles:true,cancelable:true}));
+    const a=toC(p.x,p.y),b=toC(tx,ty);
+    fire('pointerdown',a.x,a.y);
+    for(let i=1;i<=10;i++){
+      const k=i/10;
+      fire('pointermove',a.x+(b.x-a.x)*k,a.y+(b.y-a.y)*k);
+    }
+    fire('pointerup',b.x,b.y);
+    return 'drew '+p.name+' to '+tx+','+ty;
+  },
+};
+})();
+</script>
+</body>
+</html>
